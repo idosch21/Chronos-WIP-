@@ -48,7 +48,7 @@ Click Load Unpacked and select the extension folder in this project.
 Simply open index.html in your browser to view your live stats!
 
 # 🚧 Roadmap (Work in Progress)
-[ ] Daily Comparisons: Implement a "Yesterday vs Today" productivity score.
+[ ] Distraction alert: Implement a notification that triggers after x time to check if you are not "doomscrolling"
 
 [ ] Category Tagging: Auto-tag sites as "Productive" (GitHub, StackOverflow) or "Distraction" (Facebook, YouTube).
 
