@@ -27,11 +27,16 @@ cd productivity-tracker
 ```
 
 # Create and activate virtual environment
+```bash
 python -m venv venv
 .\venv\Scripts\activate
+```
 
 # Install dependencies
+```bash
 pip install fastapi uvicorn sqlalchemy
+```
+
 2. Chrome Extension
 Open chrome://extensions/ in your browser.
 
@@ -42,7 +47,7 @@ Click Load Unpacked and select the extension folder in this project.
 3. Dashboard
 Simply open index.html in your browser to view your live stats!
 
-🚧 Roadmap (Work in Progress)
+# 🚧 Roadmap (Work in Progress)
 [ ] Daily Comparisons: Implement a "Yesterday vs Today" productivity score.
 
 [ ] Category Tagging: Auto-tag sites as "Productive" (GitHub, StackOverflow) or "Distraction" (Facebook, YouTube).
