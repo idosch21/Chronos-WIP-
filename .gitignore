@@ -1,0 +1,13 @@
+# Virtual Environment
+venv/
+__pycache__/
+*.pyc
+
+# Database 
+tracker.db
+
+# IDE settings
+.vscode/
+
+# Browser/System files
+.DS_Store

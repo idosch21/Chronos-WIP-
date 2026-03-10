@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Productivity Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            background: #f4f4f9; 
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { 
+            width: 90%; 
+            max-width: 650px; 
+            margin-top: 60px; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+            text-align: center;
+        }
+
+        h1 { color: #333; margin-bottom: 30px; }
+
+        /* Status Indicator Styling */
+        #status-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        #status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #bbb;
+            border-radius: 50%;
+            margin-right: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .online { background-color: #4CAF50 !important; color: #4CAF50; }
+        .offline { background-color: #f44336 !important; color: #f44336; }
+
+        #refresh-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #36A2EB;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        #refresh-btn:hover { background-color: #2980b9; }
+
+        canvas { max-width: 100%; height: auto !important; }
+    </style>
+</head>
+<body>
+
+    <div id="status-container">
+        <div id="status-dot"></div>
+        <span id="status-text">Connecting...</span>
+    </div>
+
+    <div class="container">
+        <h1>Today's Activity</h1>
+        <canvas id="myChart"></canvas>
+        <button id="refresh-btn" onclick="loadChart()">Refresh Data</button>
+    </div>
+
+    <script>
+        let myChartInstance = null;
+
+        async function loadChart() {
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+
+            try {
+                // 1. Attempt to fetch data
+                const response = await fetch('http://127.0.0.1:8000/summary/today');
+                
+                if (!response.ok) throw new Error('Server response not OK');
+
+                const data = await response.json();
+
+                // SUCCESS: Update Status Indicator
+                statusDot.className = 'online';
+                statusText.innerText = 'Server Online';
+
+                // 2. Prepare Labels and Values for Chart.js
+                const labels = Object.keys(data);
+                if (labels.length === 0) {
+                    console.warn("No data recorded for today yet.");
+                }
+
+                const values = labels.map(l => {
+                    // Extract numbers from "Xh Ym Zs" string
+                    const parts = data[l].match(/\d+/g);
+                    if (!parts || parts.length < 3) return 0;
+                    return (parseInt(parts[0]) * 3600) + (parseInt(parts[1]) * 60) + parseInt(parts[2]);
+                });
+
+                // 3. Handle Chart Instance (Destroy old one if refreshing)
+                const ctx = document.getElementById('myChart').getContext('2d');
+                if (myChartInstance) {
+                    myChartInstance.destroy();
+                }
+
+                // 4. Create the Doughnut Chart
+                myChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: [
+                                '#FF6384', '#36A2EB', '#FFCE56', 
+                                '#4BC0C0', '#9966FF', '#FF9F40', 
+                                '#C9CBCF', '#7BC225'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        // Show the original "0h 0m 0s" string in the tooltip
+                                        const label = context.label || '';
+                                        const timeStr = data[label];
+                                        return `${label}: ${timeStr}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (e) {
+                // FAILURE: Update Status Indicator
+                console.error("Dashboard Error:", e);
+                statusDot.className = 'offline';
+                statusText.innerText = 'Server Offline';
+            }
+        }
+
+        // Initial Load
+        loadChart();
+    </script>
+</body>
+</html>
