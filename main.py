@@ -165,10 +165,16 @@ def calculate_summary_from_entries(data,end_limit=None):
     if end_limit is None:
         end_limit = datetime.utcnow()
     raw_summary = {}
+    
+    ##We create a list of "junk" data that we don't want to show on our charts.
+    ##This includes when the computer was IDLE or on a blank New Tab.
+    ignored_domains = ["127.0.0.1", "newtab", "extensions","IDLE","","System/New Tab"]
+
     ##data contains the data of the entries we have in our database,
     ##meaning that for each entry if it reached the backend, it passed the processing of the forntend,
     #meaning that the domain and timestamp are valid and we can start calculating for each domain
     ##its total time.
+    
     for i in range(len(data)):
         
         ##We calculate the duration by looking at the 'Next' entry's time.
@@ -185,11 +191,7 @@ def calculate_summary_from_entries(data,end_limit=None):
         if seconds < 0: seconds = 0
         
         domain = data[i].domain
-        
-        ##We create a list of "junk" data that we don't want to show on our charts.
-        ##This includes when the computer was IDLE or on a blank New Tab.
-        ignored_domains = ["127.0.0.1", "newtab", "extensions","IDLE",""]
-        
+                
         ##If the website is in our "junk" list, we skip it.
         ##We do this AFTER calculating the time, so the 'IDLE' time 
         ##doesn't accidentally get added to the website you visited before it.
