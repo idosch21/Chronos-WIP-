@@ -19,7 +19,7 @@
         .container { 
             width: 90%; 
             max-width: 650px; 
-            margin-top: 60px; 
+            margin-top: 20px; 
             background: white; 
             padding: 30px; 
             border-radius: 15px; 
@@ -27,7 +27,59 @@
             text-align: center;
         }
 
-        h1 { color: #333; margin-bottom: 30px; }
+        .controls {
+            margin-top: 60px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .view-btn { background-color: #e0e0e0; color: #333; }
+        .view-btn:hover { background-color: #d0d0d0; }
+
+        input[type="date"] {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-family: inherit;
+        }
+        
+        #refresh-btn {
+            margin-top: 20px;
+            background-color: #36A2EB;
+            color: white;
+            width: 100%;
+        }
+        #refresh-btn:hover { background-color: #2980b9; }
+
+        .header-group {
+            display: flex;
+            justify-content: center;
+            align-items: baseline;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        h1 { color: #333; margin: 0; font-size: 1.5rem; }
+        
+        #total-time-display {
+            font-size: 1.1rem;
+            color: #666;
+            font-weight: 400;
+            background: #eee;
+            padding: 4px 12px;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
 
         /* Status Indicator Styling */
         #status-container {
@@ -53,89 +105,133 @@
             transition: background-color 0.3s ease;
         }
 
-        .online { background-color: #4CAF50 !important; color: #4CAF50; }
-        .offline { background-color: #f44336 !important; color: #f44336; }
+        .online { background-color: #4CAF50 !important; }
+        .offline { background-color: #f44336 !important; }
 
-        #refresh-btn {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #36A2EB;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
+        #no-data-msg {
+            color: #999;
+            font-style: italic;
+            margin: 50px 0;
+            display: none; /* Hidden by default */
         }
-
-        #refresh-btn:hover { background-color: #2980b9; }
 
         canvas { max-width: 100%; height: auto !important; }
     </style>
 </head>
 <body>
-
+    
     <div id="status-container">
         <div id="status-dot"></div>
         <span id="status-text">Connecting...</span>
     </div>
 
+    <div class="controls">
+        <button class="view-btn" onclick="loadChart('today')">Today</button>
+        <button class="view-btn" onclick="loadChart('all')">All-Time</button>
+        <input type="date" id="date-picker" onchange="loadDateFromPicker()">
+    </div>
+
     <div class="container">
-        <h1>Today's Activity</h1>
+        <div class="header-group">
+            <h1 id="chart-title">Today's Activity</h1>
+            <span id="total-time-display">Total: 0h 0m 0s</span>
+        </div>
+        
+        <p id="no-data-msg">No activity recorded for this period.</p>
+        
         <canvas id="myChart"></canvas>
-        <button id="refresh-btn" onclick="loadChart()">Refresh Data</button>
+        <button id="refresh-btn" onclick="refreshCurrentView()">Refresh Data</button>
     </div>
 
     <script>
         let myChartInstance = null;
+        let currentView = 'today';
 
-        async function loadChart() {
+        function refreshCurrentView() {
+            loadChart(currentView);
+        }
+
+        function loadDateFromPicker() {
+            const dateVal = document.getElementById('date-picker').value;
+            if (dateVal) {
+                loadChart(`date/${dateVal}`);
+            }
+        }
+
+        function formatSeconds(totalSeconds) {
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            return `${h}h ${m}m ${s}s`;
+        }
+
+        async function loadChart(type = 'today') {
+            currentView = type;
             const statusDot = document.getElementById('status-dot');
             const statusText = document.getElementById('status-text');
+            const title = document.getElementById('chart-title');
+            const totalDisplay = document.getElementById('total-time-display');
+            const noDataMsg = document.getElementById('no-data-msg');
+            const chartCanvas = document.getElementById('myChart');
+
+            // 1. Reset UI visibility
+            noDataMsg.style.display = 'none';
+            chartCanvas.style.display = 'block';
+
+            if (type === 'today') {
+                title.innerText = "Today's Activity";
+            } else if (type === 'all') {
+                title.innerText = "All-Time History";
+            } else if (type.startsWith('date/')) {
+                const selectedDate = type.split('/')[1];
+                title.innerText = `Activity for ${selectedDate}`;
+            }
 
             try {
-                // 1. Attempt to fetch data
-                const response = await fetch('http://127.0.0.1:8000/summary/today');
+                const response = await fetch(`http://127.0.0.1:8000/summary/${type}`);
                 
-                if (!response.ok) throw new Error('Server response not OK');
+                // If we get here, it means the server is reachable
+                if (!response.ok) throw new Error('Network error');
 
                 const data = await response.json();
 
-                // SUCCESS: Update Status Indicator
                 statusDot.className = 'online';
                 statusText.innerText = 'Server Online';
 
-                // 2. Prepare Labels and Values for Chart.js
                 const labels = Object.keys(data);
+
+                // 2. CHECK FOR EMPTY DATA
                 if (labels.length === 0) {
-                    console.warn("No data recorded for today yet.");
+                    noDataMsg.style.display = 'block';
+                    chartCanvas.style.display = 'none';
+                    totalDisplay.innerText = "Total: 0h 0m 0s";
+                    if (myChartInstance) myChartInstance.destroy();
+                    return; // Stop here, don't try to build a chart
                 }
 
+                let grandTotalSeconds = 0;
                 const values = labels.map(l => {
-                    // Extract numbers from "Xh Ym Zs" string
                     const parts = data[l].match(/\d+/g);
                     if (!parts || parts.length < 3) return 0;
-                    return (parseInt(parts[0]) * 3600) + (parseInt(parts[1]) * 60) + parseInt(parts[2]);
+                    const seconds = (parseInt(parts[0]) * 3600) + (parseInt(parts[1]) * 60) + parseInt(parts[2]);
+                    grandTotalSeconds += seconds; 
+                    return seconds;
                 });
 
-                // 3. Handle Chart Instance (Destroy old one if refreshing)
-                const ctx = document.getElementById('myChart').getContext('2d');
+                totalDisplay.innerText = `Total: ${formatSeconds(grandTotalSeconds)}`;
+
+                const ctx = chartCanvas.getContext('2d');
                 if (myChartInstance) {
                     myChartInstance.destroy();
                 }
 
-                // 4. Create the Doughnut Chart
                 myChartInstance = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
                         labels: labels,
                         datasets: [{
                             data: values,
-                            backgroundColor: [
-                                '#FF6384', '#36A2EB', '#FFCE56', 
-                                '#4BC0C0', '#9966FF', '#FF9F40', 
-                                '#C9CBCF', '#7BC225'
-                            ],
+                            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#7BC225'],
                             borderWidth: 2
                         }]
                     },
@@ -146,7 +242,6 @@
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
-                                        // Show the original "0h 0m 0s" string in the tooltip
                                         const label = context.label || '';
                                         const timeStr = data[label];
                                         return `${label}: ${timeStr}`;
@@ -158,15 +253,14 @@
                 });
 
             } catch (e) {
-                // FAILURE: Update Status Indicator
+                // 3. ACTUAL OFFLINE CASE
                 console.error("Dashboard Error:", e);
                 statusDot.className = 'offline';
                 statusText.innerText = 'Server Offline';
             }
         }
 
-        // Initial Load
-        loadChart();
+        loadChart('today');
     </script>
 </body>
 </html>

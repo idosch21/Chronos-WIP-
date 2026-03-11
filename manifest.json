@@ -3,7 +3,7 @@
   "name": "My URL Tracker",
   "version": "1.0",
   "description": "Sends my browsing data to my Python backend.",
-  "permissions": ["tabs","idle"],
+  "permissions": ["tabs","idle","storage"],
   "host_permissions": ["http://127.0.0.1:8000/*"],
   "background": {
     "service_worker": "background.js"
