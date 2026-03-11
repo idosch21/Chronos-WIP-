@@ -168,44 +168,49 @@ def calculate_summary_from_entries(data,end_limit=None):
     
     ##We create a list of "junk" data that we don't want to show on our charts.
     ##This includes when the computer was IDLE or on a blank New Tab.
-    ignored_domains = ["127.0.0.1", "newtab", "extensions","IDLE","","System/New Tab"]
+    ignored_domains = ["127.0.0.1", "newtab", "extensions","IDLE","","System/New Tab","chrome-extension","file:"]
 
     ##data contains the data of the entries we have in our database,
     ##meaning that for each entry if it reached the backend, it passed the processing of the forntend,
     #meaning that the domain and timestamp are valid and we can start calculating for each domain
     ##its total time.
     
-    for i in range(len(data)):
+    for i in range(len(data)):##We calculate the duration by looking at the 'Next' entry's time.
         
-        ##We calculate the duration by looking at the 'Next' entry's time.
+        current_entry = data[i]
         if i < len(data) - 1:
             ##Duration = (Time of next website) - (Time of this website)
-            duration = data[i+1].timestamp - data[i].timestamp
+            next_entry = data[i+1]
+            duration_seconds = (next_entry.timestamp - current_entry.timestamp).total_seconds()
         else:
             ##If this is the last entry, we calculate from its start until "Right Now".
-            duration = end_limit - data[i].timestamp
+            duration_seconds = (end_limit - current_entry.timestamp).total_seconds()
+            ##We convert that time difference into raw seconds.
             
-        ##We convert that time difference into raw seconds.
-        seconds = duration.total_seconds()
+        if duration_seconds > 120 or duration_seconds > 14400:
+            duration_seconds = 60  # Give a standard 1-min credit
         
-        if seconds < 0: seconds = 0
+        if duration_seconds < 0:
+            duration_seconds = 0
         
-        domain = data[i].domain
+        domain = current_entry.domain
                 
         ##If the website is in our "junk" list, we skip it.
         ##We do this AFTER calculating the time, so the 'IDLE' time 
         ##doesn't accidentally get added to the website you visited before it.
-        if domain in ignored_domains or domain.startswith("file:///"):
+        if domain in ignored_domains:
             continue
         ##If this is the first time we've seen this domain today, start at 0.
         if domain not in raw_summary:
             raw_summary[domain] = 0.0
         ##Add the seconds we just calculated to that domain's total.
-        raw_summary[domain] += seconds
+        raw_summary[domain] += duration_seconds
 
     # Format the results
     display_summary = {}
+    
     for domain,seconds in raw_summary.items():
-        display_summary[domain] = format_time(seconds)
+        if (seconds > 0):
+            display_summary[domain] = format_time(seconds)
 
     return display_summary
