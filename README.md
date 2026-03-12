@@ -17,7 +17,7 @@ Most time trackers are "naive"—they count time as long as a tab is open. **Chr
 * **All-Time Summary:** A dedicated view to see your cumulative usage across all recorded history.
 * **Domain Aggregation:** Automatically strips the domain name (e.g., `google.com`) from messy URLs for clean, readable analytics.
 * **Session Guard:** Automatically filters out "noise" data, such as local project files (`file:///`), Chrome system pages, and the tracker's own dashboard.
-
+* **Interactive 24-Hour Timeline:** A dynamic histogram that automatically maps UTC data to your local timezone and supports "drill-down" filtering by clicking specific domains in the doughnut chart.
 ## ⚙️ Setup & Installation
 
 ### 1. Backend (FastAPI)
