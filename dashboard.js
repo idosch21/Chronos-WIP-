@@ -1,14 +1,14 @@
 let myChartInstance = null;
+let timelineChartInstance = null;
 let currentView = 'today';
 
-// Setup modern Event Listeners
+// 1. Initial Setup
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-today').addEventListener('click', () => loadChart('today'));
     document.getElementById('btn-all').addEventListener('click', () => loadChart('all'));
     document.getElementById('refresh-btn').addEventListener('click', refreshCurrentView);
     document.getElementById('date-picker').addEventListener('change', loadDateFromPicker);
 
-    // Initial Load
     loadChart('today');
 });
 
@@ -18,9 +18,7 @@ function refreshCurrentView() {
 
 function loadDateFromPicker() {
     const dateVal = document.getElementById('date-picker').value;
-    if (dateVal) {
-        loadChart(`date/${dateVal}`);
-    }
+    if (dateVal) loadChart(`date/${dateVal}`);
 }
 
 function formatSeconds(totalSeconds) {
@@ -30,6 +28,71 @@ function formatSeconds(totalSeconds) {
     return `${h}h ${m}m ${s}s`;
 }
 
+// 2. The Timeline Logic (The Histogram)
+async function loadTimeline(selectedDomain = null) {
+    const ctx = document.getElementById('timelineChart').getContext('2d');
+    const timelineTitle = document.getElementById('timeline-title');
+    
+    timelineTitle.innerText = selectedDomain 
+        ? `Timeline for ${selectedDomain}` 
+        : "Total Activity Timeline (24h)";
+
+    try {
+        // 1. Fetch RAW events from Python (Not the 24-array, but a list of visits)
+        let url = `http://127.0.0.1:8000/timeline`;
+        const response = await fetch(url);
+        const result = await response.json(); 
+        // We expect result to look like: { "events": [ {timestamp: "...", duration: 5.2, domain: "..."}, ... ] }
+
+        // 2. CREATE THE 24-HOUR ARRAY HERE
+        // This is where your buckets live now.
+        let hourlyBuckets = new Array(24).fill(0);
+
+        // 3. THE MAGIC SHIFT
+        result.events.forEach(event => {
+            // Convert the UTC string from Python into a local Date object
+            // This automatically applies the +2 offset for Israel.
+            const localDate = new Date(event.timestamp);
+            const hour = localDate.getHours(); // Returns 0-23 based on your PC clock
+
+            // Filter logic: Only add to the bucket if we want ALL data 
+            // OR if the domain matches what we clicked in the doughnut.
+            if (!selectedDomain || event.domain === selectedDomain) {
+                hourlyBuckets[hour] += event.duration;
+            }
+        });
+        const roundedBuckets = hourlyBuckets.map(minutes => Math.round(minutes));
+        const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+
+        if (timelineChartInstance) timelineChartInstance.destroy();
+
+        timelineChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Minutes Active',
+                    data: roundedBuckets, // <--- Using our fresh local buckets
+                    backgroundColor: selectedDomain ? '#FF6384' : '#36A2EB',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        max: 60,
+                        title: { display: true, text: 'Minutes' } 
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error("Timeline Error:", e);
+    }
+}
+// 3. The Main Summary Logic (The Doughnut)
 async function loadChart(type = 'today') {
     currentView = type;
     const statusDot = document.getElementById('status-dot');
@@ -40,11 +103,9 @@ async function loadChart(type = 'today') {
     const chartCanvas = document.getElementById('myChart');
     const datePicker = document.getElementById('date-picker');
 
-    if (type === 'today' || type === 'all') {
-        datePicker.value = ""; 
-    } else if (type.startsWith('date/')) {
-        datePicker.value = type.split('/')[1];
-    }
+    // Reset date picker if needed
+    if (type === 'today' || type === 'all') datePicker.value = "";
+    else if (type.startsWith('date/')) datePicker.value = type.split('/')[1];
 
     noDataMsg.style.display = 'none';
     chartCanvas.style.display = 'block';
@@ -62,7 +123,6 @@ async function loadChart(type = 'today') {
         statusText.innerText = 'Server Online';
 
         const labels = Object.keys(data);
-
         if (labels.length === 0) {
             noDataMsg.style.display = 'block';
             chartCanvas.style.display = 'none';
@@ -74,7 +134,6 @@ async function loadChart(type = 'today') {
         let grandTotalSeconds = 0;
         const values = labels.map(l => {
             const parts = data[l].match(/\d+/g);
-            if (!parts || parts.length < 3) return 0;
             const seconds = (parseInt(parts[0]) * 3600) + (parseInt(parts[1]) * 60) + parseInt(parts[2]);
             grandTotalSeconds += seconds; 
             return seconds;
@@ -97,20 +156,31 @@ async function loadChart(type = 'today') {
             },
             options: {
                 responsive: true,
+                onClick: (event, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const domain = labels[index];
+                        // 🎯 TRIGGER DRILL-DOWN
+                        loadTimeline(domain);
+                    } else {
+                        // Reset to total trend if clicking background
+                        loadTimeline();
+                    }
+                },
                 plugins: {
                     legend: { position: 'bottom' },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const valueInSeconds = context.raw;
-                                return `${label}: ${formatSeconds(valueInSeconds)}`;
-                            }
+                            label: (ctx) => `${ctx.label}: ${formatSeconds(ctx.raw)}`
                         }
                     }
                 }
             }
         });
+
+        // 🚀 Always load the total timeline on initial view load
+        loadTimeline();
+
     } catch (e) {
         console.error("Dashboard Error:", e);
         statusDot.className = 'offline';

@@ -79,6 +79,10 @@
             padding: 4px 12px;
             border-radius: 8px;
             white-space: nowrap;
+        }  
+        #timelineChart {
+            margin-top: 20px;
+            max-height: 300px; /* Keep it shorter than the doughnut for better hierarchy */
         }
 
         /* Status Indicator Styling */
@@ -136,11 +140,13 @@
             <h1 id="chart-title">Today's Activity</h1>
             <span id="total-time-display">Total: 0h 0m 0s</span>
         </div>
-        
+    
         <p id="no-data-msg">No activity recorded for this period.</p>
-        
-        <canvas id="myChart"></canvas>
-        <button id="refresh-btn">Refresh Data</button>
+    
+        <canvas id="myChart"></canvas> <hr style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
+
+        <h3 id="timeline-title" style="color: #333; margin-bottom: 20px;">Activity Timeline (24h)</h3>
+        <canvas id="timelineChart"></canvas> <button id="refresh-btn">Refresh Data</button>
     </div>
 
     <script src="dashboard.js"></script>

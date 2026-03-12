@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime,time,timedelta
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime,func
 
 
 ##We tell the program where to create our database file. 
@@ -134,8 +134,52 @@ def get_today_data():
     ##We send the entires we received from the database and get the times for each domain.
     return calculate_summary_from_entries(today_data,end_limit=datetime.utcnow())
     
+@app.get("/timeline")
+def get_timeline():
+    db = SessionLocal()
+    
+    today = datetime.utcnow().date()
+    
+    data = db.query(DBActivity).filter(func.date(DBActivity.timestamp)==today).order_by(DBActivity.timestamp).all()
+    
+    db.close()
+    
+    events = []
+    ignored_domains = ["127.0.0.1", "newtab", "extensions","IDLE","System/New Tab","chrome-extension://","file://","localhost"]
+    
+    if not data:
+        return {"timeline": hourly_minutes}
+    
+    for i in range(len(data)):
+        
+        current_entry = data[i]
+        domain = current_entry.domain
+        
+        if not domain or domain in ignored_domains:
+            continue
+        
+        next_time = data[i+1].timestamp if i <len(data)-1 else datetime.utcnow()
+        duration_seconds = (next_time - current_entry.timestamp).total_seconds()
+              
+        if duration_seconds > 1200:
+            duration_seconds = 60  # Give a standard 1-min credit
+        
+        if duration_seconds < 0:
+            duration_seconds = 0
+            
+        events.append({
+            "timestamp": current_entry.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "duration": duration_seconds / 60,
+            "domain": data[i].domain})
+        
+    return {"events": events}
+
+
+    
+    
+    
 @app.get("/summary/date/{date_str}")
-def get_spesific_date_data(date_str:str):
+def get_specific_date_data(date_str:str):
     db = SessionLocal()
     
     try:
@@ -187,7 +231,7 @@ def calculate_summary_from_entries(data,end_limit=None):
             duration_seconds = (end_limit - current_entry.timestamp).total_seconds()
             ##We convert that time difference into raw seconds.
             
-        if duration_seconds > 120 or duration_seconds > 14400:
+        if duration_seconds > 1200:
             duration_seconds = 60  # Give a standard 1-min credit
         
         if duration_seconds < 0:
@@ -214,3 +258,9 @@ def calculate_summary_from_entries(data,end_limit=None):
             display_summary[domain] = format_time(seconds)
 
     return display_summary
+
+
+    
+
+    
+    
