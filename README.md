@@ -56,10 +56,4 @@ Simply open index.html in your browser to view your live stats!
 
 [x] Smart Filtering: Ignore local files and dashboard activity.
 
-[ ] Category Tagging: Auto-tag sites as "Productive" (GitHub, StackOverflow) or "Distraction".
-
-[ ] Daily Goals: Set a target for "Study Time" and track your progress bar.
-
-[ ] Dark Mode: The developer's choice.
-
 Created by Ido
