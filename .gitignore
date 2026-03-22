@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 
 # Database 
+data/*.db
 *.db
 
 # IDE settings
