@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Chronos: Productivity Tracker",
   "version": "1.0",
-  "permissions": ["tabs", "idle", "storage"],
+  "permissions": ["tabs", "idle", "storage","alarms"],
   "host_permissions": [
     "http://127.0.0.1:8000/*"
   ],

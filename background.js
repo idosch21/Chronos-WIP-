@@ -1,4 +1,29 @@
 
+
+
+
+
+// This creates a "pulse" every 15 seconds.
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.alarms.create("heartbeat", { periodInMinutes: 0.25 }); 
+});
+
+// --- 2. THE HEARTBEAT LISTENER ---
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === "heartbeat") {
+        // We check if the user is actually active before pinging.
+        chrome.idle.queryState(15, (state) => {
+            if (state === "active") {
+                console.log("Heartbeat: User still active. Updating duration...");
+                reportActiveTab(); // This uses your existing logic!
+            } else {
+                // If they are away, we remind the backend we are still IDLE
+                // This keeps the IDLE session accurate too.
+                sendToPython("IDLE");
+            }
+        });
+    }
+});
 //When we open a new tab on google chrome, it logs it and sends the url to our backend
 //via sendToPython function and the url it detected(changeInfo.url)
 //sendToPython will check if its valid and decide if to post it to the backend.

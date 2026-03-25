@@ -82,6 +82,18 @@ def root(data:Activity):
         
         if last_activity:
             
+            # --- THE "ZOMBIE" FIX ---
+            # We calculate the last moment we actually heard from the extension.
+            # (Start Time + how many seconds of duration we've logged so far)
+            last_known_active = last_activity.time_start +timedelta(seconds=last_activity.duration_seconds) 
+            # If the gap between 'now' and that last pulse is > 2 minutes (120s), 
+            # it means the computer was turned off/asleep in the middle.
+            
+            if (now-last_known_active).total_seconds() > 120:
+                last_activity.time_end =last_known_active
+                db.commit()
+                last_activity =None
+            
             if last_activity.time_start.date() < now.date():
                 #This section detects if the session is happening during midnight, so it knows to close the session
                 #at 23:59:59 and reopen another one at 00:00:00 so our data is more accurate.
