@@ -1,7 +1,8 @@
 
 
 
-
+const IGNORED_SCHEMES = ['chrome://', 'file:///', 'chrome-extension://', 'edge://'];
+const IGNORED_DOMAINS = ['newtab', 'extensions', 'settings', 'blank','System/'];
 
 // This creates a "pulse" every 15 seconds.
 chrome.runtime.onInstalled.addListener(() => {
@@ -101,7 +102,7 @@ function reportActiveTab() {
                 }
             } else {
                 //If the page is generic like new tab or settings we just send a placeholder
-                sendToPython("System/New Tab", url);
+                sendToPython("newtab", url);
             }
         }
     });
@@ -140,7 +141,7 @@ chrome.tabs.onUpdated.addListener((tabId,changeInfo,tab)=>{
 function sendToPython(url) {
     //Safety check: If there's no URL, or if it's a Chrome internal page 
     //(like settings or extensions), we stop right here and don't send anything.
-    if (!url || url.startsWith('chrome://') || url.startsWith('file:///')) return;
+    if (!url || IGNORED_SCHEMES.some(scheme => url.startsWith(scheme))) return;
 
     let domainName;
 
@@ -151,16 +152,8 @@ function sendToPython(url) {
     }
     else{
         try{
-            //Here we try to turn a long messy link into just the website name.
-            if (url.startsWith('http')) {
-                //If it's a real website link (starts with http), 
-                //we peel off everything except the main name (like 'google.com').
-                domainName = new URL(url).hostname;
-            }
-            else {
-                //If it's already just a name, we use it as is.
-                domainName = url;
-            }
+            domainName = url.startsWith('http') ? new URL(url).hostname : url;
+            if (IGNORED_DOMAINS.includes(domainName)) return;
         }
         catch(e){
             //If something goes wrong and the URL is weird, we log an error 

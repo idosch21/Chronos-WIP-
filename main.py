@@ -8,7 +8,9 @@ from datetime import datetime,time,timedelta , timezone
 from sqlalchemy import DateTime,func,Float,Date
 from datetime import date as date_obj
 
-
+IGNORED_DOMAINS = {"idle", "newtab", "extensions", "settings", "blank", 
+    "new-tab-page", "system/newtab", "chrome-extension", "new tab","System/New Tab"}
+IGNORED_PREFIXES = ["chrome://", "file:///", "chrome-extension://", "edge://","System"]
 ##We tell the program where to create our database file. 
 ##'sqlite:///./data/tracker.db' means: Create a simple file named tracker.db in "data" folder.
 DATABASE_URL = "sqlite:///./data/tracker.db"
@@ -76,7 +78,15 @@ def root(data:Activity):
     db = SessionLocal()
     now = get_now()
     
+    
     try:
+        
+        if is_ignored(data.domain):
+            last = db.query(DBActivity).filter(DBActivity.time_end == None).first()
+            if last:
+                close_session(db, last, now)
+            return {"status": "ignored"}
+
         #we query for the last activity that is in the data base.
         last_activity = db.query(DBActivity).filter(DBActivity.time_end == None).first()
         
@@ -90,33 +100,29 @@ def root(data:Activity):
             # it means the computer was turned off/asleep in the middle.
             
             if (now-last_known_active).total_seconds() > 120:
+                close_session(db, last_activity, last_known_active)
                 last_activity.time_end =last_known_active
-                db.commit()
                 last_activity =None
-            
+        
+        if last_activity:
             if last_activity.time_start.date() < now.date():
                 #This section detects if the session is happening during midnight, so it knows to close the session
                 #at 23:59:59 and reopen another one at 00:00:00 so our data is more accurate.
                 yesterday_midnight =datetime.combine(last_activity.time_start.date(),time.max)
-                last_activity.time_end = yesterday_midnight
-                last_activity.duration_seconds = (yesterday_midnight-last_activity.time_start).total_seconds()
-                db.commit()
+                close_session(db,last_activity,yesterday_midnight)
+                start_session(db,data,datetime.combine(now.date(),time.min))
                 
-                today_midnight = datetime.combine(now.date(),time.min)
-                new_today_entry = DBActivity(url = last_activity.url,domain = last_activity.domain,time_start = today_midnight,time_end= None,date = now.date())
-                db.add(new_today_entry)
-                db.commit()
                 print(f"Midnight split handled for {last_activity.domain}")
                 return {"status": "midnight_split_handled"}
             
             if last_activity.domain == data.domain:
+                last_activity.duration_seconds = (now-last_activity.time_start).total_seconds()
+                db.commit()
                 return {"status": "continue session","domain": data.domain}
-            last_activity.time_end = now
-            
-            duration = (last_activity.time_end - last_activity.time_start).total_seconds()
-            last_activity.duration_seconds = duration
-            db.commit()
-        if data.domain != "IDLE":
+            close_session(db, last_activity, now)
+        start_session(db, data, now)
+        return {"status": "saved", "time": now}    
+        """if data.domain != "IDLE":
             #if the domain is not IDLE then we add the data to our database.
             new_entry = DBActivity(url = data.url,domain = data.domain,time_start = now,time_end = None,date = now.date())
             db.add(new_entry)
@@ -125,7 +131,7 @@ def root(data:Activity):
             print(f"new session started: {data.domain}")
         else:
             print("system is IDLE. No new session started")
-        return {"status": "saved", "time": now}
+        return {"status": "saved", "time": now}"""
     except Exception as e:
             db.rollback()
             print(f"Database Error: {e}")    
@@ -138,15 +144,15 @@ def root(data:Activity):
 def get_history():
     with SessionLocal() as db:
         summary = {}
-        ignored_domains = ["127.0.0.1", "newtab", "extensions","IDLE","System/New Tab","chrome-extension://","file://","localhost"]
-        results = db.query(DBActivity.domain,func.sum(DBActivity.duration_seconds).label("total_seconds")).filter(DBActivity.domain.notin_(ignored_domains)).group_by(DBActivity.domain).all()
+        #ignored_domains = ["127.0.0.1", "newtab", "extensions","IDLE","System/New Tab","chrome-extension://","file://","localhost"]
+        results = db.query(DBActivity.domain,func.sum(DBActivity.duration_seconds).label("total_seconds")).filter(DBActivity.domain.notin_(IGNORED_DOMAINS)).group_by(DBActivity.domain).all()
 
 
         for domain, total_seconds in results:
             if total_seconds <=0:
                 continue
-            is_ignored = any(ign in domain for ign in ignored_domains)
-            if not is_ignored:
+            #is_ignored = any(ign in domain for ign in ignored_domains)
+            if not is_ignored(domain):
                 summary[domain] = total_seconds
         
     return summary
@@ -246,7 +252,7 @@ def get_timeline(target_date :str =Query(None),domain:str=None):
         ignored = ["127.0.0.1", "newtab", "extensions", "IDLE", "System/New Tab", "localhost"]
         intervals = []
         for entry in data:
-            if entry.domain and not any(ign in entry.domain for ign in ignored):
+            if entry.domain and not is_ignored(entry.domain):##changed here ignored
                 # If a session is currently active (time_end is None), 
                 # we 'clip' its end to exactly 'now'.
                 end_time = entry.time_end if entry.time_end else end_limit
@@ -340,7 +346,7 @@ def calculate_summary_from_entries(data,end_limit=None):
     
     ##We create a list of "junk" data that we don't want to show on our charts.
     ##This includes when the computer was IDLE or on a blank New Tab.
-    ignored_domains = ["127.0.0.1", "newtab", "extensions","IDLE","System/New Tab","chrome-extension://","file://","localhost"]
+    #ignored_domains = ["127.0.0.1", "newtab", "extensions","IDLE","System/New Tab","chrome-extension://","file://","localhost"]
 
     ##data contains the data of the entries we have in our database,
     ##meaning that for each entry if it reached the backend, it passed the processing of the forntend,
@@ -349,9 +355,7 @@ def calculate_summary_from_entries(data,end_limit=None):
     
     for entry in data:
         domain = entry.domain
-        if domain in ignored_domains:
-            continue
-        if any(ignored in domain for ignored in ignored_domains):
+        if is_ignored(domain):
             continue
         if entry.time_end is None:
             duration = (end_limit-entry.time_start).total_seconds()
@@ -364,8 +368,38 @@ def calculate_summary_from_entries(data,end_limit=None):
             raw_summary[domain] = 0.0
         raw_summary[domain] += duration
         
-    #display_summary = {}
-    #for domain,seconds in raw_summary.items():
-    #    if seconds > 0:
-    #        display_summary[domain] =format_time(seconds)
     return raw_summary
+
+
+def is_ignored(domain: str) -> bool:
+    if not domain:
+        return True
+    
+    # 1. Strip hidden spaces and make lowercase
+    dom_low = domain.lower().strip()
+    
+    # 2. Kill anything starting with 'system' or 'chrome'
+    # This is much safer than checking for exact matches
+    system_prefixes = ("system", "chrome", "file://", "edge://", "about:")
+    if dom_low.startswith(system_prefixes):
+        return True
+    
+    # 3. Check exact matches in our set
+    if dom_low in IGNORED_DOMAINS:
+        return True
+        
+    return False
+def close_session(db, activity, end_time):
+    """Helper to cleanly seal a session with the correct duration."""
+    activity.time_end = end_time
+    activity.duration_seconds = (end_time - activity.time_start).total_seconds()
+    db.commit()
+    
+def start_session(db, data, start_time):
+    """Helper to create a fresh DB entry."""
+    new_entry = DBActivity(
+        url=data.url, domain=data.domain, date=start_time.date(),
+        time_start=start_time, time_end=None, duration_seconds=0.0
+    )
+    db.add(new_entry)
+    db.commit()
