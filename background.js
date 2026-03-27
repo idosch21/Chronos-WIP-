@@ -138,7 +138,7 @@ chrome.tabs.onUpdated.addListener((tabId,changeInfo,tab)=>{
 //This function is the "Courier."
 //Its job is to process the data, pack it up 
 //and send it over to your Python server.
-function sendToPython(url) {
+/*function sendToPython(url) {
     //Safety check: If there's no URL, or if it's a Chrome internal page 
     //(like settings or extensions), we stop right here and don't send anything.
     if (!url || IGNORED_SCHEMES.some(scheme => url.startsWith(scheme))) return;
@@ -176,4 +176,46 @@ function sendToPython(url) {
     })
     .catch(e => console.error("Python Server Offline", e));
 
+}
+*/
+
+function sendToPython(url) {
+    if (!url) return;
+
+    let domainName = "idle"; // Start with a default 'stop' signal
+    let isIgnored = false;
+
+    // Check if the scheme is ignored (chrome://, etc.)
+    if (IGNORED_SCHEMES.some(scheme => url.startsWith(scheme))) {
+        isIgnored = true;
+    }
+
+    if (!isIgnored && url !== "IDLE") {
+        try {
+            domainName = url.startsWith('http') ? new URL(url).hostname : url;
+            // Check if the domain itself is ignored (newtab, etc.)
+            if (IGNORED_DOMAINS.includes(domainName)) {
+                domainName = "idle";
+            }
+        } catch (e) {
+            domainName = "idle";
+        }
+    } else if (url === "IDLE") {
+        domainName = "idle";
+    }
+
+    // --- THE FIX: ALWAYS FETCH ---
+    // We removed all the "return" statements. 
+    // Now, even if a site is ignored, we send "idle" to the backend.
+    const dataToSend = {
+        url: url,
+        domain: domainName
+    };
+
+    fetch("http://127.0.0.1:8000/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dataToSend)
+    })
+    .catch(e => console.error("Python Server Offline", e));
 }
