@@ -1,85 +1,52 @@
-### 🕒 Chronos: Smart Productivity Tracker
-A full-stack web activity tracker that uses a Chrome Extension to log browsing telemetry and a containerized FastAPI backend to visualize productivity in real-time.
+# ⏱️ Chronos
 
-## 🚀 The Mission
-Most time trackers are "naive"—they count time as long as a tab is open. Chronos is built for high-fidelity accuracy by utilizing the Chrome Idle API and Media Playback detection to ensure your "Deep Work" stats reflect reality, not just idle tabs.
+**Chronos** is a privacy-first, self-hosted productivity tracker. It combines a Chrome extension that monitors your active browsing time with a FastAPI backend that securely logs your data to your own personal database.
 
-## 🛠️ Tech Stack
-Extension: JavaScript (Chrome APIs: Tabs, Idle, Runtime, Sessions, Alarms)
+Unlike commercial trackers, Chronos is entirely self-hosted. **You own 100% of your data.** No third-party servers, no selling of your browsing history—just your data on your terms.
 
-Backend: Python 3.12+ (FastAPI, SQLAlchemy, Pydantic)
+---
 
-Infrastructure: Docker & Docker Compose
+## ✨ Features
+* **Accurate Tracking:** Automatically logs the domain you are actively viewing.
+* **Smart Idle Detection:** Pauses tracking when you switch away from Chrome or stop interacting, with intelligent overrides for active meetings (Google Meet, Zoom) or media playback.
+* **Visual Dashboard:** View your daily and all-time productivity using interactive Chart.js visualizations.
+* **Zero-Config Deployment:** Ready for one-click deployment to Render with automated PostgreSQL provisioning.
 
-Registry: GitHub Container Registry (ghcr.io)
+---
 
-Database: SQLite (Persistent O(1) daily SQL filtering)
+## 🚀 Quick Start: Run Your Own Instance
 
-Dashboard: HTML5/CSS3 + Chart.js 4.x (Interactive Visualization)
+Setting up your own private version of Chronos takes less than 5 minutes.
 
-## ✨ Key Features
-Background Daemon: Runs as a containerized service with a restart: always policy. No manual terminal management required; it starts automatically with your OS.
+### 1. Deploy Your Backend
+Deploy your private Web Server and PostgreSQL database on Render. 
 
-The Midnight Split: Proprietary backend logic that automatically closes "Yesterday's" sessions at 23:59:59 and opens "Today's" at 00:00:00 for perfect daily reporting.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
-Intelligent Idle & Video Bypass: Automatically pauses tracking after 15 seconds of inactivity unless the active tab is playing audio/video (e.g., YouTube lectures or Spotify).
+*Wait for Render to finish the build. Once live, copy your service URL (e.g., `https://chronos-api-abcd.onrender.com`).*
 
-Persistent Volume Architecture: Utilizes Docker volumes to map local SQLite data (./data) into the container, ensuring your history survives updates and is never exposed to public version control.
+### 2. Install the Chrome Extension
+1. Download or clone this repository to your local machine.
+2. Open Google Chrome and navigate to `chrome://extensions/`.
+3. Enable **Developer mode** (top right corner).
+4. Click **Load unpacked** and select the `extension` folder from this project.
 
-Interactive 24-Hour Timeline: A dynamic histogram that syncs with your local timezone (IST) and allows for "drill-down" filtering by clicking domain slices in the doughnut chart.
+### 3. Connect the Dots
+1. Right-click the **Chronos** icon in your Chrome toolbar and select **Options**.
+2. Paste your Render service URL into the API URL field.
+3. Click **Save**.
+4. Browse the web for a moment, then click the extension icon to see your data live!
 
-Interactive Drill-Down: A dynamic 24-hour histogram (IST sync) that allows you to filter specific domain activity by clicking slices in the doughnut chart.
+---
 
-Hybrid Heartbeat System: Combines instant event-driven logging (tab switches) with a 15-second "pulse" (Chrome Alarms) to ensure continuous, high-precision tracking even during long sessions.
+## 🛠️ Local Development
 
-Zombie Session Prevention: Specialized backend logic that detects unexpected PC shutdowns or sleep modes. It retroactively "seals" dangling sessions based on the last recorded heartbeat, ensuring 100% data integrity without manual cleanup.
+If you want to modify the code or test locally, the backend is configured to use a local SQLite database by default if no cloud environment variables are found.
 
-## ⚙️ Setup & Installation
-1. The Modern Way (Docker - Recommended)
-The most reliable way to run Chronos. This handles all dependencies and background execution automatically.
-
-```Bash
-# Clone the repository
-git clone https://github.com/idosch21/productivity-tracker.git
-cd productivity-tracker
-```
-
-
-# Start the background service
+### Backend Setup
 ```bash
-docker compose up -d
-```
-
-2. The Development Way (Manual venv)
-Use this if you need to debug the Python logic directly.
-
-```Bash
-python -m venv venv
-.\venv\Scripts\activate
+# Install dependencies
 pip install -r requirements.txt
-uvicorn main:app --reload
-```
 
-## 📦 Deployment & CI/CD
-This project is integrated with GitHub Container Registry (GHCR) for easy deployment to cloud providers like AWS.
-
-Official Image: ghcr.io/idosch21/chronos-api:latest
-
-Persistence: The database lives at ./data/tracker.db on the host machine to ensure data safety across container rebuilds.
-
-## 🚧 Roadmap
-[x] Date Filtering: Explore historical activity via calendar picker.
-
-[x] Containerization: Full Docker & Docker Compose integration.
-
-[x] Cloud Registry: Automated image hosting via GHCR.
-
-[x] Domain Isolation: Interactive histogram filtering for specific site analysis.
-
-[x] Zombie Prevention: Retroactive gap-closing for unexpected system shutdowns.
-
-[ ] Mobile Sync (WIP): Utilizing chrome.sessions to proxy iPhone Chrome tabs via the desktop extension.
-
-[ ] Weekly Reports: Automated email summaries of productivity trends.
-
-Created by Ido
+# Start the FastAPI server
+uvicorn main:app --host 127.0.0.1 --port 8000
