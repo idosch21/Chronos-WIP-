@@ -1,3 +1,4 @@
+import os
 from pydantic import BaseModel
 from fastapi import FastAPI,Query
 from sqlalchemy import create_engine,Column,Integer,String
@@ -13,10 +14,21 @@ IGNORED_DOMAINS = {"idle", "newtab", "extensions", "settings", "blank",
 IGNORED_PREFIXES = ["chrome://", "file:///", "chrome-extension://", "edge://","system"]
 ##We tell the program where to create our database file. 
 ##'sqlite:///./data/tracker.db' means: Create a simple file named tracker.db in "data" folder.
-DATABASE_URL = "sqlite:///./data/tracker.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./chronos_local.db")
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    
+if DATABASE_URL.startswith("sqlite"):
+    # SQLite requires this special argument to work with FastAPI threads
+    engine = create_engine(
+        DATABASE_URL, connect_args={"check_same_thread": False}
+    )
+else:
+    # PostgreSQL (Neon) does not need the check_same_thread argument
+    engine = create_engine(DATABASE_URL)
 
 ## The 'Engine' is the physical connection between Python and the database file.
-engine = create_engine(DATABASE_URL)
 
 ## 'SessionLocal' is like a factory. Every time we need to save or read data, 
 ## we use this factory to create a new "Session" (a temporary connection).
