@@ -75,6 +75,7 @@ app = FastAPI()
 app.add_middleware(
    CORSMiddleware,
    allow_origins=["*"], # Allows the extension to talk to the server
+   allow_credentials=True,
    allow_methods=["*"], # Allows all types of requests (POST, GET, etc.)
    allow_headers=["*"],
 )

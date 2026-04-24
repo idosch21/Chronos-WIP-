@@ -446,62 +446,17 @@ function formatSeconds(totalSeconds) {
     return parts.length > 0 ? parts.join(' ') : "0s";
 }
 
-/*// 2. THE TIMELINE LOGIC (BAR CHART)
+
 async function loadTimeline(selectedDomain = null, selectedDate = null) {
-    const ctx = document.getElementById('timelineChart').getContext('2d');
-    
-    // 1. Build the URL correctly
-    const url = new URL('http://127.0.0.1:8000/timeline');
-    if (selectedDate) url.searchParams.append('target_date', selectedDate);
-    if (selectedDomain) url.searchParams.append('domain', selectedDomain);
+    const storageData = await chrome.storage.sync.get(['apiBaseUrl']);
+    const backendUrl = storageData.apiBaseUrl;
 
-    try {
-        const response = await fetch(url);
-        const result = await response.json(); 
-
-        // 2. ALWAYS reset buckets to zero
-        let hourlyBuckets = new Array(24).fill(0);
-
-        if (result.events) {
-            result.events.forEach(event => {
-                const localDate = new Date(event.timestamp);
-                const hour = localDate.getHours(); 
-                // Convert seconds to minutes
-                hourlyBuckets[hour] += (event.duration / 60);
-            });
-        }
-        const roundedBuckets = hourlyBuckets.map(minutes => {
-            return Math.floor(minutes); // 14.793 becomes 14
-        });
-
-        // 3. Update the Chart
-        if (window.timelineChartInstance) window.timelineChartInstance.destroy();
-
-        window.timelineChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
-                datasets: [{
-                    label: selectedDomain ? `Minutes on ${selectedDomain}` : 'Total Minutes Active',
-                    data: roundedBuckets, // Use the fresh data!
-                    backgroundColor: selectedDomain ? '#FF6384' : '#36A2EB',
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: { y: { beginAtZero: true, max: 60 } }
-            }
-        });
-    } catch (e) {
-        console.error("Timeline Error:", e);
+    if (!backendUrl) {
+        console.error("No API URL configured. Please check extension options.");
+        return;
     }
-}
-
-*/
-async function loadTimeline(selectedDomain = null, selectedDate = null) {
     const ctx = document.getElementById('timelineChart').getContext('2d');
-    const url = new URL('http://127.0.0.1:8000/timeline');
+    const url = new URL(`${backendUrl}/timeline`);
     if (selectedDate) url.searchParams.append('target_date', selectedDate);
     if (selectedDomain) url.searchParams.append('domain', selectedDomain);
 
@@ -549,8 +504,7 @@ async function loadTimeline(selectedDomain = null, selectedDate = null) {
         console.error("Timeline Error:", e);
     }
 }
-/*
-// 3. THE MAIN SUMMARY LOGIC (DOUGHNUT CHART)
+
 async function loadChart(type = 'today') {
     currentView = type;
     const statusDot = document.getElementById('status-dot');
@@ -564,7 +518,6 @@ async function loadChart(type = 'today') {
 
     refreshBtn.innerText = "🔄 Syncing...";
 
-    // --- DATE EXTRACTION ---
     let dateForTimeline = null;
     if (type === 'today' || type === 'all') {
         datePicker.value = "";
@@ -573,118 +526,23 @@ async function loadChart(type = 'today') {
         datePicker.value = dateForTimeline;
     }
 
-    // UI Updates
-    noDataMsg.style.display = 'none';
-    chartCanvas.style.display = 'block';
-
     if (type === 'today') title.innerText = "Today's Activity";
     else if (type === 'all') title.innerText = "All-Time History";
     else title.innerText = `Activity for ${dateForTimeline}`;
 
-    try {
-        const response = await fetch(`http://127.0.0.1:8000/summary/${type}`);
-        if (!response.ok) throw new Error('Network error');
+    const storageData = await chrome.storage.sync.get(['apiBaseUrl']);
+    const backendUrl = storageData.apiBaseUrl;
 
-        const data = await response.json();
-        statusDot.className = 'online';
-        statusText.innerText = 'Server Online';
-
-        const labels = Object.keys(data);
-        if (labels.length === 0) {
-            noDataMsg.style.display = 'block';
-            chartCanvas.style.display = 'none';
-            totalDisplay.innerText = "Total: 0s";
-            if (myChartInstance) myChartInstance.destroy();
-            // Even if no summary data, try to load an empty timeline for that date
-            loadTimeline(null, dateForTimeline);
-            return;
-        }
-
-
-        const values = Object.values(data);
-        const grandTotalSeconds = values.reduce((acc, curr) => {
-            const val = parseFloat(curr);
-            return acc + (isNaN(val) ? 0 : val);
-        }, 0);
-
-        totalDisplay.innerText = `Total: ${formatSeconds(grandTotalSeconds)}`;
-
-
-        const ctx = chartCanvas.getContext('2d');
-        if (myChartInstance) myChartInstance.destroy();
-
-        myChartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#7BC225'],
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                onClick: (event, elements) => {
-                    if (elements.length > 0) {
-                        const index = elements[0].index;
-                        const domain = labels[index];
-                        // Pass current date to keep timeline in sync when filtering by domain
-                        loadTimeline(domain, dateForTimeline);
-                    } else {
-                        loadTimeline(null, dateForTimeline);
-                    }
-                },
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => `${ctx.label}: ${formatSeconds(ctx.raw)}`
-                        }
-                    }
-                }
-            }
-        });
-
-        // --- FINAL SYNC: Update Timeline whenever the Summary updates ---
-        loadTimeline(null, dateForTimeline);
-
-    } catch (e) {
-        console.error("Dashboard Error:", e);
+    if (!backendUrl) {
         statusDot.className = 'offline';
-        statusText.innerText = 'Server Offline';
-    } finally {
+        statusText.innerText = 'Setup Required in Options';
         refreshBtn.innerText = "🔄 Refresh";
-    }
-}*/
-
-async function loadChart(type = 'today') {
-    currentView = type;
-    const statusDot = document.getElementById('status-dot');
-    const statusText = document.getElementById('status-text');
-    const title = document.getElementById('chart-title');
-    const totalDisplay = document.getElementById('total-time-display');
-    const noDataMsg = document.getElementById('no-data-msg');
-    const chartCanvas = document.getElementById('myChart');
-    const refreshBtn = document.getElementById('refresh-btn');
-    const datePicker = document.getElementById('date-picker');
-
-    refreshBtn.innerText = "🔄 Syncing...";
-
-    let dateForTimeline = null;
-    if (type === 'today' || type === 'all') {
-        datePicker.value = "";
-    } else if (type.startsWith('date/')) {
-        dateForTimeline = type.split('/')[1];
-        datePicker.value = dateForTimeline;
+        return; 
     }
 
-    if (type === 'today') title.innerText = "Today's Activity";
-    else if (type === 'all') title.innerText = "All-Time History";
-    else title.innerText = `Activity for ${dateForTimeline}`;
 
     try {
-        const response = await fetch(`http://127.0.0.1:8000/summary/${type}`);
+        const response = await fetch(`${backendUrl}/summary/${type}`);
         if (!response.ok) throw new Error('Network error');
 
         const data = await response.json();

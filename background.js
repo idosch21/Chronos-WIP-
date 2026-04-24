@@ -220,7 +220,6 @@ function sendToPython(url) {
     .catch(e => console.error("Python Server Offline", e));
 }
 */
-
 const IGNORED_SCHEMES = ['chrome://', 'file:///', 'chrome-extension://', 'edge://'];
 const IGNORED_DOMAINS = ['newtab', 'extensions', 'settings', 'blank', 'system/'];
 
@@ -349,10 +348,19 @@ function sendToPython(url) {
 
     console.log(">>> Reporting to Python:", domainName);
 
-    const dataToSend = { url: url, domain: domainName };
-    fetch("http://127.0.0.1:8000/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dataToSend)
-    }).catch(err => console.error("Python Offline"));
+    chrome.storage.sync.get(['apiBaseUrl'], (result) => {
+        const backendUrl = result.apiBaseUrl;
+        
+        if (!backendUrl) {
+            console.log("No API URL configured yet.");
+            return; 
+        }
+
+        const dataToSend = { url: url, domain: domainName };
+        fetch(`${backendUrl}/log`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dataToSend)
+        }).catch(err => console.error("Python Offline"));
+    });
 }
