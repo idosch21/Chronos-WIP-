@@ -29,7 +29,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         chrome.windows.getLastFocused({ populate: false }, (win) => {
             if (win && win.focused) {
                 // If Chrome is focused, check if the user is actually typing/moving mouse
-                chrome.idle.queryState(30, (state) => {
+                chrome.idle.queryState(15, (state) => {
                     if (state === "active") {
                         reportActiveTab();
                     } else {
