@@ -125,6 +125,10 @@ function sendToPython(url,force = false) {
     // Update our tracker
     lastReportedDomain = domainName;
 
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000; 
+    const localISOTime = (new Date(now - offset)).toISOString().slice(0, -1);
+
     console.log(">>> Reporting to Python:", domainName, force ? "(Forced)" : "");
 
     chrome.storage.sync.get(['apiBaseUrl'], (result) => {
@@ -135,7 +139,7 @@ function sendToPython(url,force = false) {
             return; 
         }
 
-        const dataToSend = { url: url, domain: domainName };
+        const dataToSend = { url: url, domain: domainName, timestamp: localISOTime };
         fetch(`${backendUrl}/log`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

@@ -56,9 +56,9 @@ class DBActivity(Base):
     url = Column(String)
     domain = Column(String)
     # This automatically records the exact second the entry is saved to the DB.
-    time_start = Column(DateTime,default=lambda: datetime.now())
+    time_start = Column(DateTime)
     time_end = Column(DateTime,nullable=True)
-    date = Column(Date, default=lambda: datetime.now().date())
+    date = Column(Date,)
     duration_seconds = Column(Float,default = 0.0)
 
 
@@ -89,7 +89,10 @@ def get_now():
 def root(data:Activity):
     ##We open a way to our database.
     db = SessionLocal()
-    now = get_now()
+    if data.timestamp:
+        now = data.timestamp
+    else:
+        now = datetime.now()
     
     
     try:
@@ -404,8 +407,12 @@ def close_session(db, activity, end_time):
 def start_session(db, data, start_time):
     """Helper to create a fresh DB entry."""
     new_entry = DBActivity(
-        url=data.url, domain=data.domain, date=start_time.date(),
-        time_start=start_time, time_end=None, duration_seconds=0.0
+        url=data.url,
+        domain=data.domain,
+        date=start_time.date(),
+        time_start=start_time,
+        time_end=None,
+        duration_seconds=0.0
     )
     db.add(new_entry)
     db.commit()
