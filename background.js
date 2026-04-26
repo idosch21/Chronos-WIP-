@@ -34,12 +34,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
                         reportActiveTab();
                     } else {
                         // Check for meetings/media before idling
-                        checkMediaAndReport();
+                        checkMediaAndReport(true);
                     }
                 });
             } else {
                 // If Chrome is open but NOT the focused app on your PC
-                sendToPython("IDLE");
+                sendToPython("IDLE",true);
             }
         });
     }
@@ -78,7 +78,7 @@ function reportActiveTab() {
     });
 }
 
-function checkMediaAndReport() {
+function checkMediaAndReport(isForced = false) {
     // Look for ANY tab that is either playing sound or is a known meeting domain
     chrome.tabs.query({}, (allTabs) => {
         const activeMediaTab = allTabs.find(tab => {
@@ -89,17 +89,17 @@ function checkMediaAndReport() {
         if (activeMediaTab) {
             // If we found a tab playing media/meeting, keep reporting it!
             console.log("System is idle, but media/meeting is active on:", activeMediaTab.url);
-            sendToPython(activeMediaTab.url);
+            sendToPython(activeMediaTab.url,isForced);
         } else {
             // Truly idle: no audio, no meeting, no input.
             console.log("System is idle and silent. Sending IDLE.");
-            sendToPython("IDLE");
+            sendToPython("IDLE",isForced);
         }
     });
 }
 let lastReportedDomain = ""; // Tracks the last thing we told Python
 
-function sendToPython(url) {
+function sendToPython(url,force = false) {
     if (!url) return;
 
     let domainName = "idle";
@@ -118,14 +118,14 @@ function sendToPython(url) {
 
     // --- THE STATE GATE ---
     // If we are idle now AND we were already idle, STOP. Don't ping the server.
-    if (domainName === "idle" && lastReportedDomain === "idle") {
+    if (!force && domainName === lastReportedDomain) {
         return; 
     }
 
     // Update our tracker
     lastReportedDomain = domainName;
 
-    console.log(">>> Reporting to Python:", domainName);
+    console.log(">>> Reporting to Python:", domainName, force ? "(Forced)" : "");
 
     chrome.storage.sync.get(['apiBaseUrl'], (result) => {
         const backendUrl = result.apiBaseUrl;
