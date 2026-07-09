@@ -18,15 +18,27 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./chronos_local.db")
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    
+
+# 2. Build the configuration dictionary
+engine_kwargs = {}
+
 if DATABASE_URL.startswith("sqlite"):
-    # SQLite requires this special argument to work with FastAPI threads
-    engine = create_engine(
-        DATABASE_URL, connect_args={"check_same_thread": False}
-    )
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
 else:
-    # PostgreSQL (Neon) does not need the check_same_thread argument
-    engine = create_engine(DATABASE_URL)
+    # Remote PostgreSQL configurations for stability
+    engine_kwargs.update({
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+        "connect_args": {
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+        }
+    })
+
+# 3. Instantiate the engine exactly once
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 ## The 'Engine' is the physical connection between Python and the database file.
 
