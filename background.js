@@ -131,8 +131,10 @@ function sendToPython(url,force = false) {
 
     console.log(">>> Reporting to Python:", domainName, force ? "(Forced)" : "");
 
+
     chrome.storage.sync.get(['apiBaseUrl'], (result) => {
-        const backendUrl = result.apiBaseUrl;
+        // Try to get it from storage. If it's missing, use the Render URL as a fallback!
+        const backendUrl = result.apiBaseUrl || "https://chronos-wip.onrender.com";
         
         if (!backendUrl) {
             console.log("No API URL configured yet.");
@@ -146,4 +148,20 @@ function sendToPython(url,force = false) {
             body: JSON.stringify(dataToSend)
         }).catch(err => console.error("Python Offline"));
     });
+
+    /*chrome.storage.sync.get(['apiBaseUrl'], (result) => {
+        const backendUrl = result.apiBaseUrl;
+        
+        if (!backendUrl) {
+            console.log("No API URL configured yet.");
+            return; 
+        }
+
+        const dataToSend = { url: url, domain: domainName, timestamp: localISOTime };
+        fetch(`${backendUrl}/log`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dataToSend)
+        }).catch(err => console.error("Python Offline"));
+    });*/
 }
