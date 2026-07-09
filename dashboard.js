@@ -130,7 +130,7 @@ async function loadChart(type = 'today') {
     else title.innerText = `Activity for ${dateForTimeline}`;
 
     const storageData = await chrome.storage.sync.get(['apiBaseUrl']);
-    const backendUrl = storageData.apiBaseUrl;
+    const backendUrl = "https://chronos-wip.onrender.com";
 
     if (!backendUrl) {
         statusDot.className = 'offline';
