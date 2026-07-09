@@ -86,8 +86,8 @@ app = FastAPI()
 ## This block "Allows" the extension to send data to this Python script safely.
 app.add_middleware(
    CORSMiddleware,
-   allow_origins=["*"], # Allows the extension to talk to the server
-   allow_credentials=True,
+   allow_origins=["*","chrome-extension://gbjdjalhholbmgnhkknmpeapcibhjklf/index.html"], # Allows the extension to talk to the server
+   allow_credentials=False,
    allow_methods=["*"], # Allows all types of requests (POST, GET, etc.)
    allow_headers=["*"],
 )
