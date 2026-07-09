@@ -48,7 +48,8 @@ function formatSeconds(totalSeconds) {
 
 async function loadTimeline(selectedDomain = null, selectedDate = null) {
     const storageData = await chrome.storage.sync.get(['apiBaseUrl']);
-    const backendUrl = storageData.apiBaseUrl;
+    const backendUrl = "https://chronos-wip.onrender.com";
+
 
     if (!backendUrl) {
         console.error("No API URL configured. Please check extension options.");
