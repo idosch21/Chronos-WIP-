@@ -8,6 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime,time,timedelta , timezone 
 from sqlalchemy import DateTime,func,Float,Date
 from datetime import date as date_obj
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 IGNORED_DOMAINS = {"idle", "newtab", "extensions", "settings", "blank", 
     "new-tab-page", "system/newtab", "chrome-extension", "new tab","System/New Tab"}
@@ -16,6 +20,9 @@ IGNORED_PREFIXES = ["chrome://", "file:///", "chrome-extension://", "edge://","s
 ##'sqlite:///./data/tracker.db' means: Create a simple file named tracker.db in "data" folder.
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./chronos_local.db")
 
+#postgresql://authenticator:npg_Im4TSctWAu5U@ep-rough-star-alr8y69q-pooler.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+#postgresql://postgres:mqn5Fc-P&eKts6X@db.mlriqthfgdsdvjmurqnt.supabase.co:5432/postgres
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
