@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime,time,timedelta , timezone 
 from sqlalchemy import DateTime,func,Float,Date
 from datetime import date as date_obj
-import dotenv
 from dotenv import load_dotenv
 
 
